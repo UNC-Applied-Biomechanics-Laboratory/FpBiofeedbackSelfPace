@@ -1,0 +1,52 @@
+UDTM NOTES
+
+To do before:
+- Fill in IP addresses in communication variables
+- Locate ideal 'center' of treadmill
+	- variable name is "treadmillCenter", line 85
+- Adjust max belt speed if necessary to 1.8 m/s
+	- "MaxBeltSpeed", Line 82
+
+Communication Variable Code:
+--------------------------------------------------------------------------------
+Important Definitions:
+- A network interface controller (NIC, also known as a network interface card, 
+network adapter, LAN adapter or physical network interface, and by similar terms) 
+is a computer hardware component that connects a computer to a computer network.
+- SDK stands for "software development kit"
+
+initializationStructure.TalkToHostNicCardAddress = '127.0.0.1';
+initializationStructure.HostNicCardAddress = '127.0.0.1';
+initializationStructure.HostMulticastAddress = '225.1.1.1';
+initializationStructure.TalkToClientsNicCardAddress = '0';
+initializationStructure.ClientsMulticastAddress = '225.1.1.2';
+
+TalkToHostNicCardAddress - This is the interface we send requests FROM when
+ communicating with the SDK2 host. 
+HostNicCardAddress - This is the interface we send requests TO when 
+communicating with the SDK2 host. 
+HostMulticastAddress - This is the address that the SDK2 host multicasts 
+data to. This is not a physical device address. 
+TalkToClientsNicCardAddress - This is the interface that we listen to SDK2 
+client requests on. 
+ClientsMulticastAddress - This is the address that we multicast data TO 
+when sending data to our SDK2 clients. This is not a physical device 
+address. 
+
+***To view NIC properties, open the control panel, access the device manager, then
+click on "Network Adapters". Double click to open properties. This may or may not be useful.***
+
+Else, type "cmd" into the command prompt, type "ipconfig" into the command window that opens.
+IPv4 address = IP address. Physical address = MAC address (unique to the NIC card)
+--------------------------------------------------------------------------------
+
+No hardware changes?
+MATLAB just communicates with Cortex, no software installs should be necessary.
+
+Dsable hardware communication for debugging.
+Ask Mandy to find code that sets up communications
+Matlab compatibility issues?
+Adjust origin of code's treadmill? Michael and Katy
+	Origin of camera system = bottom right corner
+
+
