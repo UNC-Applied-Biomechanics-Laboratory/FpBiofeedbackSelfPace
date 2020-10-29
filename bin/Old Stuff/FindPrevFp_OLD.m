@@ -1,6 +1,6 @@
 function [Fp] = FindPrevFp(Data)
 
-SearchSteps = 2; % number of preceeding steps to locate
+SearchSteps = 3; % number of preceeding steps to locate
 
 %% find changes in foot on/offs
 R = [Data.RightOn];
@@ -12,8 +12,9 @@ ChangeL = diff(L)~=0;
 LChanges = sum(ChangeL);
 
 %% wait for enough time and steps
-Events = 5; % # of events to look for
-dataFrames = 99; 
+% if less than 10 gait events, dont look for stance/swing times
+Events = 10;
+dataFrames = 150; 
 if length(Data) < dataFrames 
     % if not enough time, save as NaN
     Fp.RyPeak = NaN;
@@ -53,12 +54,15 @@ Len = length(Valid);
 % get indicies of last stance phase only
 % LastStanceR = [Len-LastOn(1): Len-LastOff(1)];
 for i = 1:SearchSteps
-    Fp.LastStance(i).R = Len-FootOffInds(i)+1: Len-FootOnInds(i);
+    Fp.LastStance(i).R = [Len-FootOffInds(i)+1: Len-FootOnInds(i)];
 end
 
 % extract forces from last stance phase
 Fp.Rz = [Data(Fp.LastStance(1).R).F1Z];
 Fp.Ry = [Data(Fp.LastStance(1).R).F1Y];
+% Fp.Ry = [Data(LastStanceR).F1Y];
+
+% plot([Data(LastStance(1).R).F1Y])
 
 %% LEFT
 Valid = [Data.LeftOn];
@@ -82,7 +86,7 @@ Len = length(Valid);
 % get indicies of last stance phase only
 % LastStanceR = [Len-LastOn(1): Len-LastOff(1)];
 for i = 1:SearchSteps
-    Fp.LastStance(i).L = Len-FootOffInds(i)+1: Len-FootOnInds(i);
+    Fp.LastStance(i).L = [Len-FootOffInds(i)+1: Len-FootOnInds(i)];
 end
 
 % extract forces from last stance phase

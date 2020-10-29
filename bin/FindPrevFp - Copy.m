@@ -1,6 +1,6 @@
 function [Fp] = FindPrevFp(Data)
 
-SearchSteps = 2; % number of preceeding steps to locate
+SearchSteps = 3; %  numSteps+2; % add in 2 steps to ensure
 
 %% find changes in foot on/offs
 R = [Data.RightOn];
@@ -12,8 +12,9 @@ ChangeL = diff(L)~=0;
 LChanges = sum(ChangeL);
 
 %% wait for enough time and steps
-Events = 5; % # of events to look for
-dataFrames = 99; 
+% if less than 5 gait events, dont look for stance/swing times
+Events = 5;
+dataFrames = 150; 
 if length(Data) < dataFrames 
     % if not enough time, save as NaN
     Fp.RyPeak = NaN;
@@ -35,60 +36,142 @@ end
 Valid = [Data.RightOn];
 Ons = fliplr(Valid);
 % if currently in stance
-if Ons(1) == 1
+if Data(end).RightOn == 1
     % delete force data from current step
-    CurrStepOn = find(Ons == 0, 1);
+%     flip = fliplr([Data.RightOn]);
+%       Valid = [Data.RightOn];
+    flip = fliplr(Valid);
+    CurrStepOn = find(flip == 0, 1);
+    
+    % get last foot off
+%     Ons = fliplr(Valid);
+%     Ons = fliplr([Data.RightOn]);
     Ons(1:CurrStepOn) = 0;
+    
+      FootOn = logical(diff(Ons)>0);
+    FootOff = logical(diff(Ons)<0);
+    
+    FootOnInds = find(FootOn, SearchSteps);
+    FootOffInds = find(FootOff, SearchSteps);
+    
+%     LastOff = find(Ons == 1, SearchSteps);
+%     if length(LastOff) > 1
+%         while LastOff(2) - LastOff(1) > 1
+%             LastOff(1) = [];
+%             break
+%         end
+%     end
+%     % get last foot on
+%     LastOn = find(Ons(LastOff(1)+1:end) == 0, SearchSteps);
+%     if LastOn(1) == 0
+%         LastOn(1) = [];
+%     end
+%     LastOn = LastOn + LastOff(1); % add back in search offset
+    
+    
+else % if currently in swing
+
+    % get last foot off
+%     Valid = [Data.RightOn];
+%     Ons = fliplr(Valid);
+    %     Ons = fliplr([Data.RightOn]);
+    FootOn = logical(diff(Ons)>0);
+    FootOff = logical(diff(Ons)<0);
+    
+    FootOnInds = find(FootOn, SearchSteps);
+    FootOffInds = find(FootOff, SearchSteps);
+    
+%     LastOff = find(Ons == 1, SearchSteps);
+%     if length(LastOff) > 1
+%         while LastOff(2) - LastOff(1) > 1
+%             LastOff(1) = [];
+%             break
+%         end
+%     end
+%     % get last foot on
+%     LastOn = find(Ons(LastOff(1):end) == 0, SearchSteps) - 1;
+%     if LastOn(1) == 0
+%         LastOn(1) = [];
+%     end
+%     LastOn = LastOn + LastOff(1); % add back in search offset
+    
 end
 
-% label foot ons and offs as changes in On variable
-FootOn = logical(diff(Ons)>0);
-FootOff = logical(diff(Ons)<0);
-FootOnInds = find(FootOn, SearchSteps);
-FootOffInds = find(FootOff, SearchSteps);
-
 % get overall length of data stream
+% Len = length(Data);
 Len = length(Valid);
 
 % get indicies of last stance phase only
 % LastStanceR = [Len-LastOn(1): Len-LastOff(1)];
 for i = 1:SearchSteps
-    Fp.LastStance(i).R = Len-FootOffInds(i)+1: Len-FootOnInds(i);
+    Fp.LastStance(i).R = [Len-FootOffInds(i)+1: Len-FootOnInds(i)];
 end
 
 % extract forces from last stance phase
-Fp.Rz = [Data(Fp.LastStance(1).R).F1Z];
-Fp.Ry = [Data(Fp.LastStance(1).R).F1Y];
+Fp.Rz = [Data(LastStance(1).R).F1Z];
+Fp.Ry = [Data(LastStance(1).R).F1Y];
+% Fp.Ry = [Data(LastStanceR).F1Y];
+
+plot([Data(LastStance(1).R).F1Y])
 
 %% LEFT
-Valid = [Data.LeftOn];
-Ons = fliplr(Valid);
-% if currently in stance
-if Ons(1) == 1
+if Data(end).LeftOn == 1
     % delete force data from current step
-    CurrStepOn = find(Ons == 0, 1);
+      Valid = [Data.LeftOn];
+    flip = fliplr(Valid);
+%     flip = fliplr([Data.LeftOn]);
+    CurrStepOn = find(flip == 0, 1);
+    
+    % get last foot off
+%       Valid = [Data.LeftOn];
+    Ons = fliplr(Valid);
+%     Ons = fliplr([Data.LeftOn]);
     Ons(1:CurrStepOn) = 0;
+    LastOff = find(Ons == 1, SearchSteps);
+    if length(LastOff) > 1
+        while LastOff(2) - LastOff(1) > 1
+            LastOff(1) = [];
+            break
+        end
+    end
+    % get last foot on
+    LastOn = find(Ons(LastOff(1)+1:end) == 0, SearchSteps);
+    if LastOn(1) == 0
+        LastOn(1) = [];
+    end
+    LastOn = LastOn + LastOff(1); % add back in search offset
+    
+    
+else % if currently in swing
+    
+    % get last foot off
+    Valid = [Data.LeftOn];
+    Ons = fliplr(Valid);
+%     Ons = fliplr([Data.LeftOn]);
+    LastOff = find(Ons == 1, SearchSteps);
+    if length(LastOff) > 1
+        while LastOff(2) - LastOff(1) > 1
+            LastOff(1) = [];
+            break
+        end
+    end
+    % get last foot on
+    LastOn = find(Ons(LastOff(1):end) == 0, SearchSteps) - 1;
+    if LastOn(1) == 0
+        LastOn(1) = [];
+    end
+    LastOn = LastOn + LastOff(1); % add back in search offset
 end
-
-% label foot ons and offs as changes in On variable
-FootOn = logical(diff(Ons)>0);
-FootOff = logical(diff(Ons)<0);
-FootOnInds = find(FootOn, SearchSteps);
-FootOffInds = find(FootOff, SearchSteps);
 
 % get overall length of data stream
+% Len = length(Data);
 Len = length(Valid);
-
 % get indicies of last stance phase only
-% LastStanceR = [Len-LastOn(1): Len-LastOff(1)];
-for i = 1:SearchSteps
-    Fp.LastStance(i).L = Len-FootOffInds(i)+1: Len-FootOnInds(i);
-end
+LastStanceL = [Len-LastOn(1):Len-LastOff(1)];
 
 % extract forces from last stance phase
-Fp.Lz = [Data(Fp.LastStance(1).L).F2Z];
-Fp.Ly = [Data(Fp.LastStance(1).L).F2Y];
-
+Fp.Lz = [Data(LastStanceL).F2Z];
+Fp.Ly = [Data(LastStanceL).F2Y];
 
 %% Plot to check values
 % PlotGRFs = 'Yes';
