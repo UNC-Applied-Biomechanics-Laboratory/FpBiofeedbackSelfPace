@@ -1,45 +1,35 @@
 function [Data] = SelfPaceTM(Settings)
 
 
-%% Define IP addresses
-% bodyMass = Settings.BodyMass;
-% IP.Talk2HostNic = '10.1.1.192'; %Cortex computer top port
-% IP.HostNic = '10.1.1.198'; %Processing computer top port
-IP.Treadmill = '127.0.0.1'; 
-IP.Talk2HostNic = '127.0.0.1'; 
-IP.HostNic = '127.0.0.1';
-
-%% connect to treadmill and set initial speed
+%% Initialize inputs, SDKs, and Communications to treadmill
+% define inputs
 StartSpeed = Settings.StartSpeed; %m/s
-r0 = calllib('treadmill0x2Dremote','TREADMILL_initializeUDP',IP.Treadmill,'4000');
-r1 = calllib('treadmill0x2Dremote','TREADMILL_setSpeed',StartSpeed,StartSpeed,.25);
-if r0 ~= 0 || r1 ~= 0
-    disp('Treadmill Connection Error');
-else
-    disp('Connected to Treadmill'); 
-    fprintf('Waiting for treadmill to reach walking speed... \n');
-    pause(5); % Wait for treadmill to reach starting speed
-    disp(['Treadmill set to ', num2str(StartSpeed), ' m/s']);
-end
+% feedbackLeg = answer{2};
+% frameRate = str2double(answer{3});
+% bodyMass = Settings.BodyMass;
 
-%% Initialize cortex communication variables
-initializeStruct.TalkToHostNicCardAddress = IP.Talk2HostNic;
-initializeStruct.HostNicCardAddress = IP.HostNic;
+% connect to treadmill and set initial speed
+calllib('treadmill0x2Dremote','TREADMILL_initializeUDP','127.0.0.1','4000');
+calllib('treadmill0x2Dremote','TREADMILL_setSpeed',StartSpeed,StartSpeed,.2);
+fprintf('Waiting for treadmill to reach walking speed... \n');
+pause(10); % Wait for treadmill to reach starting speed
+
+% Initialize cortex communication variables
+initializeStruct.TalkToHostNicCardAddress = '127.0.0.1';
+initializeStruct.HostNicCardAddress = '127.0.0.1';
 initializeStruct.HostMulticastAddress = '225.1.1.1';
 initializeStruct.TalkToClientsNicCardAddress = '0';
 initializeStruct.ClientsMulticastAddress = '225.1.1.2';
 
 % Load the SDK libraries
-r = mCortexExit(); % exit cortex 
-returnValue = mCortexInitialize(initializeStruct); % initialize cortex
+exitValue = mCortexExit(); %#ok<NASGU>
+returnValue = mCortexInitialize(initializeStruct);
 if returnValue ~= 0
     errordlg('Unable to initialize ethernet communication','Sample file error');
-else
-    disp('Connected to Cortex'); 
 end
 
-%% Initialize data structure and figures
-MinBeltSpeed = 0.4; %m/s
+%% initialize variables
+MinBeltSpeed = 0; %m/s
 MaxBeltSpeed = 2;
 fprintf('Max Belt Speed = %.2f m/s \n',MaxBeltSpeed)
 realtimeAccel = 0.6; % acceleration limiter
@@ -47,10 +37,23 @@ TreadmillCenter = 0.87; % treadmill center & dead zone center
 % Exp = 2; % exponential factor to change speed outside dead zone
 Linear = 0.10; % linear factor to change increase speed outside dead zone
 DeadZone = 0.10; % set CoP dead zone distance (1 sided)
-
 Frame = 1;
+% Data.AnalogForces = [];
+
+%% Controller Loop, stops with button click
 k=0; % initialize counter
 
+StopFig = figure(1); % create stop button
+uicontrol(StopFig, 'Style', 'PushButton', 'String', 'Exit Figure to Stop', ...
+    'Callback', 'close(StopFig)', 'Position', [20 20 100 100]);
+
+FeedbackFig = figure(2);
+set(FeedbackFig, 'Position',[100 100 800 800]); % create biofeedback figure
+
+tic; % create timer
+startTime = datevec(now); % create elapsed timer
+
+% initialize data structure for output
 L = Settings.FrameRate .* Settings.Duration; 
 Data = struct([]); 
 % Data(L).AnalogForces = [];
@@ -70,39 +73,27 @@ Data(L).Speed = [];
 Data(L).Fp = [];
 Data(L).MeanPeakFp = [];
 
-StopFig = figure(1); % create stop button
-uicontrol(StopFig, 'Style', 'PushButton', 'String', 'Exit Figure to Stop', ...
-    'Callback', 'delete(gcbo)', 'Position', [20 20 100 100]);
-
-FeedbackFig = figure(2);
-set(FeedbackFig, 'Position',[1000 100 800 550]); % create biofeedback figure
-
-disp('Starting Trial');
-tic; % create timer
-startTime = datevec(now); % create elapsed timer
-
-%% Self Pace Treadmill Controller Loop
-% stops with button click
-while isempty(StopFig) == 0 %ishandle(StopFig)
+%% Self Pace run loop
+while ishandle(StopFig)
+    
     drawnow;
-    f = mGetCurrentFrame();
-    timer = toc; 
+    frameOfData = mGetCurrentFrame();
     
     %% if new frame of data
-    if f.iFrame>Frame
-        k=k+1;
-        Frame = f.iFrame;
+    data = frameOfData;
+    if data.iFrame>Frame
         
-        % extract analog forces
-        F1Y = f.AnalogData.AnalogSamples(4,:);
+        Frame = data.iFrame;
+        F1Y = data.AnalogData.AnalogSamples(4,:);
         F1y = LoadScale('Fy', bits2volts(F1Y));
-        F1Z = f.AnalogData.AnalogSamples(5,:);
+        F1Z = data.AnalogData.AnalogSamples(5,:);
         F1z = LoadScale('Fz', bits2volts(F1Z));
-        F2Y = f.AnalogData.AnalogSamples(11,:);
+        F2Y = data.AnalogData.AnalogSamples(11,:);
         F2y = LoadScale('Fy', bits2volts(F2Y));
-        F2Z = f.AnalogData.AnalogSamples(12,:);
+        F2Z = data.AnalogData.AnalogSamples(12,:);
         F2z = LoadScale('Fz', bits2volts(F2Z));
         
+        k=k+1;
         if k == 1
             prevSpeed = StartSpeed;
         elseif k > 1
@@ -111,11 +102,10 @@ while isempty(StopFig) == 0 %ishandle(StopFig)
         
         %% Save Treadmill data in structure
         % save force data in structure
-        % Data(k).AnalogForces = frameOfData.AnalogData.Forces;
-        Data(k).Frame = f.iFrame;
+%         Data(k).AnalogForces = frameOfData.AnalogData.Forces;
+        Data(k).Frame = frameOfData.iFrame;
         % uncomment to save all cortex frame data
         %             Data(k).FrameData = frameOfData;
-        
         % save converted forces (in N)
         Data(k).F1Y = F1y;
         Data(k).F1Z = F1z;
@@ -123,10 +113,10 @@ while isempty(StopFig) == 0 %ishandle(StopFig)
         Data(k).F2Z = F2z;
         
         % save CoPs
-        Data(k).CoP1y = mean(f.AnalogData.Forces(3,1:2:end));
-        Data(k).CoP2y = mean(f.AnalogData.Forces(3,2:2:end));
-        Data(k).CoP1x = mean(f.AnalogData.Forces(4,1:2:end));
-        Data(k).CoP2x = mean(f.AnalogData.Forces(4,2:2:end));
+        Data(k).CoP1y = mean(frameOfData.AnalogData.Forces(3,1:2:end));
+        Data(k).CoP2y = mean(frameOfData.AnalogData.Forces(3,2:2:end));
+        Data(k).CoP1x = mean(frameOfData.AnalogData.Forces(4,1:2:end));
+        Data(k).CoP2x = mean(frameOfData.AnalogData.Forces(4,2:2:end));
         
         % save whether time point is swing or stance for left and right
         Thresh = 25; % threshold for determining if a true vGRF
@@ -152,7 +142,7 @@ while isempty(StopFig) == 0 %ishandle(StopFig)
             
             if diff > 0 % if outside dead zone, change speed
                 % new speed factor
-                % SpeedChange = Sign .* diff.^Exp;
+                %                 SpeedChange = Sign .* diff.^Exp;
                 SpeedChange = Sign .* diff .* Linear;
                 
                 % Calculate new speed, real component only
@@ -175,16 +165,13 @@ while isempty(StopFig) == 0 %ishandle(StopFig)
         end
         
         %set new speed
-        if newSpeed ~= prevSpeed
-            calllib('treadmill0x2Dremote','TREADMILL_setSpeed',newSpeed,newSpeed,realtimeAccel);
-        end
-        Data(k).Speed = newSpeed; % save speed
+        calllib('treadmill0x2Dremote','TREADMILL_setSpeed',newSpeed,newSpeed,realtimeAccel);
+        Data(k).Speed = newSpeed;  % save speed
         
         %% Get current time
         currTime = datevec(now);
         ElapsedTime = etime(currTime, startTime);
         Data(k).Time = ElapsedTime; 
-        
     end
     
     
@@ -228,63 +215,68 @@ while isempty(StopFig) == 0 %ishandle(StopFig)
     
     
     %% plot FP biofeedback
-    if strcmp(Settings.Biofeedback, 'Fp') && k > 200
-        
-        % find peak propulsive force from previous step
-        [Fp] = FindPrevFp(Data(k-199:k));
-        MeanPeakFp = nanmean([Fp.LyPeak, Fp.RyPeak]);
-        Data(k).Fp = Fp;
-        Data(k).MeanPeakFp = MeanPeakFp;
-        
-        % plot biofeedback
-        set(0,'CurrentFigure',FeedbackFig);
-        x = [0 1 2];
-        y1 = [Settings.TargetFp Settings.TargetFp  Settings.TargetFp];
-        y2 = [MeanPeakFp MeanPeakFp MeanPeakFp];
-        if abs(1 - MeanPeakFp / Settings.TargetFp) > 0.05
-            Color = '-r';
-        else
-            Color = '-g';
-        end
-        plot(x ,y1,'-k',x,y2,Color,'LineWidth',4);
-        
-        % update title based on minutes completed
-        if ElapsedTime < 60
-            TitleStr = 'Fp Targeting';
-        elseif ElapsedTime >= 60 && ElapsedTime < 120
-            TitleStr = 'Fp Targeting - 1 min elapsed';
-        elseif ElapsedTime >= 120 && ElapsedTime < 180
-            TitleStr = 'Fp Targeting - 2 min elapsed';
-        elseif ElapsedTime >= 180 && ElapsedTime < 240
-            TitleStr = 'Fp Targeting - 3 min elapsed';
-        elseif ElapsedTime >= 240
-            TitleStr = 'Fp Targeting - 4 min elapsed';
-        end
-        title(TitleStr);
-        
-        ax = gca; % edit axes
-        ax.XTick = [];
-        ax.YTick = [];
-        Lo = Settings.NormFp * 0.5;
-        Hi = Settings.NormFp * 1.5;
-        ax.YLim = [Lo Hi];
-        
-        % put elapsed time in contolfig
-        if ishandle(StopFig)
-            set(0,'CurrentFigure',StopFig)
-            TimeStr = [num2str(floor(ElapsedTime)), ' seconds elapsed'];
-            uipanel('Title',TimeStr, 'FontSize',12,...
-                'BackgroundColor','white',...
-                'Position',[.25 .1 .5 .5]);
-        else
-            break
-        end
-        
-    end
+%     if strcmp(Settings.Biofeedback, 'Fp') && length(Data) > 50
+%         
+%         % find peak propulsive force from previous step
+%         [Fp] = FindPrevFp(Data);
+%         MeanPeakFp = nanmean([Fp.LyPeak, Fp.RyPeak]);
+%         Data(k).Fp = Fp;
+%         Data(k).MeanPeakFp = MeanPeakFp;
+%         
+%         % plot biofeedback
+%         set(0,'CurrentFigure',FeedbackFig);
+%         
+%         plot([0 1 2] ,[Settings.TargetFp Settings.TargetFp  Settings.TargetFp],...
+%             '-k', 'LineWidth',2);
+%         hold on;
+%         L = plot([0 1 2],[MeanPeakFp MeanPeakFp MeanPeakFp],...
+%             '-k', 'LineWidth',4);
+%         if abs(1 - MeanPeakFp / Settings.TargetFp) > 0.05
+%             L.Color = 'r';
+%         else
+%             L.Color = 'g';
+%         end
+%         hold off;
+%         
+%         if ElapsedTime < 60
+%             TitleStr = 'Fp Targeting';
+%         elseif ElapsedTime >= 60 && ElapsedTime < 120
+%             TitleStr = 'Fp Targeting - 1 min elapsed';
+%         elseif ElapsedTime >= 120 && ElapsedTime < 180
+%             TitleStr = 'Fp Targeting - 2 min elapsed';
+%         elseif ElapsedTime >= 180 && ElapsedTime < 240
+%             TitleStr = 'Fp Targeting - 3 min elapsed';
+%         elseif ElapsedTime >= 240
+%             TitleStr = 'Fp Targeting - 4 min elapsed';
+%         end
+%         title(TitleStr);
+%         
+%         ax = gca; % edit axes
+%         ax.XTick = [];
+%         ax.YTick = [];
+%         Lo = Settings.NormFp * 0.5;
+%         Hi = Settings.NormFp * 1.5;
+%         ax.YLim = [Lo Hi];
+%         
+%         % put elapsed time in contolfig
+%         if ishandle(StopFig)
+%             set(0,'CurrentFigure',StopFig)
+%             TimeStr = [num2str(floor(ElapsedTime)), ' seconds elapsed'];
+%             uipanel('Title',TimeStr, 'FontSize',12,...
+%                 'BackgroundColor','white',...
+%                 'Position',[.25 .1 .5 .5]);
+%             uicontrol('Style', 'PushButton', 'String', 'Exit Figure to Stop', ...
+%                 'Callback', 'close(StopFig)', 'Position', [20 20 100 100]);
+%         else
+%             break
+%         end
+%         
+%     end
     
     
     %% plot speed biofeedback
 %     if strcmp(Settings.Biofeedback, 'Speed')
+%         
 %         plot([0 1 2] ,[Settings.TargetSpeed Settings.TargetSpeed  Settings.TargetSpeed],...
 %             '-k', 'LineWidth',2);
 %         hold on;
@@ -309,7 +301,7 @@ while isempty(StopFig) == 0 %ishandle(StopFig)
     end
     
     %% Stop treadmill when time limit reached or if StopFig deleted
-    if timer > Settings.Duration
+    if toc > Settings.Duration
         close(StopFig);
         disp('Trial Duration Reached');
         break
@@ -320,8 +312,8 @@ end
 %% stop treadmill
 disp('Stopping Treadmill');
 speed = 0;
-calllib('treadmill0x2Dremote','TREADMILL_initializeUDP',IP.Treadmill,'4000');
-calllib('treadmill0x2Dremote','TREADMILL_setSpeed',speed, speed,.25);
+calllib('treadmill0x2Dremote','TREADMILL_initializeUDP','127.0.0.1','4000');
+calllib('treadmill0x2Dremote','TREADMILL_setSpeed',speed, speed,.2);
 close all;
 
 % remove 1st row if empty

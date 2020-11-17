@@ -7,28 +7,43 @@ Ly = [InputData.F2Y];
 Lz = [InputData.F2Z];
 
 %% Find Peaks
-PkProm = 80; % threshold peak prominence
-PkWidth = 100; % threshold peak width
-PkDist = 100; 
-PkHt = bodyMass; % only find peaks that are ~10% of body weight (no gravity multiplication)
+PkProm = bodyMass * 1.5; % threshold peak prominence
+% PkWidth = 100; % threshold peak width
+% PkDist = 100; 
+PkHt = bodyMass * 1.5; % only find peaks that are ~10% of body weight (no gravity multiplication)
 % RIGHT
 % vertical force peaks
 [FpData.RzPeaks, FpData.RzInds] = findpeaks(Rz, 'SortStr','descend',...
-    'MinPeakProminence',PkProm, 'MinPeakWidth',PkWidth,...
-    'MinPeakDistance', PkDist, 'MinPeakHeight', PkHt);
+    'MinPeakProminence',PkProm, 'MinPeakHeight', PkHt);
 % prop force peaks
 [FpData.RyPeaks, FpData.RyInds] = findpeaks(-Ry, 'SortStr','descend',...
-    'MinPeakProminence',PkProm, 'MinPeakWidth',PkWidth, ...
-    'MinPeakDistance', PkDist, 'MinPeakHeight', PkHt);
+    'MinPeakProminence',PkProm, 'MinPeakHeight', PkHt);
 % LEFT
 % vertical force peaks
 [FpData.LzPeaks, FpData.LzInds] = findpeaks(Lz, 'SortStr','descend',...
-    'MinPeakProminence',PkProm, 'MinPeakWidth',PkWidth, ...
-    'MinPeakDistance', PkDist, 'MinPeakHeight', PkHt);
+    'MinPeakProminence',PkProm, 'MinPeakHeight', PkHt);
 % prop force peaks
 [FpData.LyPeaks, FpData.LyInds] = findpeaks(-Ly, 'SortStr','descend',...
-    'MinPeakProminence',PkProm, 'MinPeakWidth',PkWidth, ...
-    'MinPeakDistance', PkDist, 'MinPeakHeight', PkHt);
+    'MinPeakProminence',PkProm, 'MinPeakHeight', PkHt);
+
+% % RIGHT
+% % vertical force peaks
+% [FpData.RzPeaks, FpData.RzInds] = findpeaks(Rz, 'SortStr','descend',...
+%     'MinPeakProminence',PkProm, 'MinPeakWidth',PkWidth,...
+%     'MinPeakDistance', PkDist, 'MinPeakHeight', PkHt);
+% % prop force peaks
+% [FpData.RyPeaks, FpData.RyInds] = findpeaks(-Ry, 'SortStr','descend',...
+%     'MinPeakProminence',PkProm, 'MinPeakWidth',PkWidth, ...
+%     'MinPeakDistance', PkDist, 'MinPeakHeight', PkHt);
+% % LEFT
+% % vertical force peaks
+% [FpData.LzPeaks, FpData.LzInds] = findpeaks(Lz, 'SortStr','descend',...
+%     'MinPeakProminence',PkProm, 'MinPeakWidth',PkWidth, ...
+%     'MinPeakDistance', PkDist, 'MinPeakHeight', PkHt);
+% % prop force peaks
+% [FpData.LyPeaks, FpData.LyInds] = findpeaks(-Ly, 'SortStr','descend',...
+%     'MinPeakProminence',PkProm, 'MinPeakWidth',PkWidth, ...
+%     'MinPeakDistance', PkDist, 'MinPeakHeight', PkHt);
 
 %% plot propulsive force
 if strcmp(PlotFp, 'Yes')

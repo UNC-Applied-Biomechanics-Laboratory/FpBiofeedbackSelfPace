@@ -1,18 +1,20 @@
 function [Fp] = FindPrevFp(Data)
 
-SearchSteps = 1; % number of preceeding steps to locate
+SearchSteps = 3; % number of preceeding steps to locate
 
 %% find changes in foot on/offs
 R = [Data.RightOn];
 ChangeR = diff(R)~=0;
 RChanges = sum(ChangeR);
+
 L = [Data.LeftOn];
 ChangeL = diff(L)~=0;
 LChanges = sum(ChangeL);
 
 %% wait for enough time and steps
-Events = 5; % # of events to look for
-dataFrames = 199; 
+% if less than 10 gait events, dont look for stance/swing times
+Events = 10;
+dataFrames = 150; 
 if length(Data) < dataFrames 
     % if not enough time, save as NaN
     Fp.RyPeak = NaN;
@@ -52,12 +54,15 @@ Len = length(Valid);
 % get indicies of last stance phase only
 % LastStanceR = [Len-LastOn(1): Len-LastOff(1)];
 for i = 1:SearchSteps
-    Fp.LastStance(i).R = Len-FootOffInds(i)+1: Len-FootOnInds(i);
+    Fp.LastStance(i).R = [Len-FootOffInds(i)+1: Len-FootOnInds(i)];
 end
 
 % extract forces from last stance phase
 Fp.Rz = [Data(Fp.LastStance(1).R).F1Z];
 Fp.Ry = [Data(Fp.LastStance(1).R).F1Y];
+% Fp.Ry = [Data(LastStanceR).F1Y];
+
+% plot([Data(LastStance(1).R).F1Y])
 
 %% LEFT
 Valid = [Data.LeftOn];
@@ -80,10 +85,9 @@ Len = length(Valid);
 
 % get indicies of last stance phase only
 % LastStanceR = [Len-LastOn(1): Len-LastOff(1)];
-% for i = 1:SearchSteps
-%     Fp.LastStance(i).L = Len-FootOffInds(i)+1: Len-FootOnInds(i);
-% end
- Fp.LastStance(1).L = Len-FootOffInds(1)+1: Len-FootOnInds(1);
+for i = 1:SearchSteps
+    Fp.LastStance(i).L = [Len-FootOffInds(i)+1: Len-FootOnInds(i)];
+end
 
 % extract forces from last stance phase
 Fp.Lz = [Data(Fp.LastStance(1).L).F2Z];
@@ -113,10 +117,23 @@ if strcmp(PlotGRFs, 'Yes')
     
 end
 
-%% Calculate peak Forces
+%% Calculate max
+% PkProm = 100; % threshold peak prominence
+% PkyProm = 10; 
 
 % RIGHT
 % vertical force peaks
+% [pks, locs] = findpeaks(Fp.Rz, 'SortStr','descend',...
+%     'MinPeakProminence',PkProm);
+% ind = find(locs > length(Fp.Rz)/2); % find 1st peak in 2nd half of stance
+% Fp.RzPeak = pks(ind);
+% Fp.RzInd = locs(ind);
+% % prop force peaks
+% [pks, locs] = findpeaks(fliplr(-Fp.Ry), 'SortStr','descend',...
+%     'MinPeakProminence',PkyProm, 'NPeaks', 1);
+% Fp.RyPeak = abs(pks);
+% Fp.RyInd = length(Fp.Ry) - locs;
+
 Half = floor(length(Fp.Rz)/2);
 BackHalf = Fp.Rz(Half:end);
 [Fp.RzPeak, locs] = findpeaks(BackHalf, 'SortStr','descend','NPeaks',1);
@@ -126,11 +143,24 @@ Fp.RzInd = locs + Half - 1;
 
 % LEFT
 % vertical force peaks
+% [pks, locs] = findpeaks(fliplr(Fp.Lz), 'SortStr','descend',...
+%     'MinPeakProminence',PkProm, 'NPeaks', 1);
+% ind = find(locs > length(Fp.Lz)/2); % find 1st peak in 2nd half of stance
+% Fp.LzPeak = pks(ind);
+% Fp.LzInd = locs(ind);
+% % prop force peaks
+% [pks, locs] = findpeaks(fliplr(-Fp.Ly), 'SortStr','descend',...
+%     'MinPeakProminence',PkyProm, 'NPeaks', 1);
+% ind = find(locs > length(Fp.Ly)/2);
+% Fp.LyPeak = abs(pks(ind));
+% Fp.LyInd = locs(ind);
 Half = floor(length(Fp.Lz)/2);
 BackHalf = Fp.Lz(Half:end);
 [Fp.LzPeak, locs] = findpeaks(BackHalf, 'SortStr','descend','NPeaks',1);
 Fp.LzInd = locs + Half - 1;
 % prop force peaks
+% [pks, locs] = findpeaks(fliplr(-Fp.Ly), 'SortStr','descend',...
+%     'MinPeakProminence',PkyProm, 'NPeaks', 1);
 [Fp.LyPeak, Fp.LyInd] = max(-Fp.Ly);
 
 % if no idenfiable prop peak, take value at peak vertical force
@@ -152,5 +182,11 @@ if isempty(Fp.LyPeak)
         Fp.LyInd = NaN;
     end
 end
+
+% delete unnecessary variables
+% Fp.Lz = []; 
+% Fp.Ly = []; 
+% Fp.Rz = []; 
+% Fp.Ry = []; 
 
 end

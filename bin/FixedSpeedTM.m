@@ -132,7 +132,7 @@ while isempty(StopFig) == 0
     end
     
     %% Fp Biofeedback if desired
-    if strcmp(Settings.Biofeedback, 'Fp') && length(Data) > 50
+    if strcmp(Settings.Biofeedback, 'Fp') && length(Data) > 200
         
         % find peak propulsive force from previous step
         [Fp] = FindPrevFp(Data);
@@ -195,15 +195,15 @@ while isempty(StopFig) == 0
         set(0,'CurrentFigure',FeedbackFig)
         
         if ElapsedTime < 60
-            TitleStr = 'Fp Targeting';
+            TitleStr = 'Fixed Speed';
         elseif ElapsedTime >= 60 && ElapsedTime < 120
-            TitleStr = 'Fp Targeting - 1 min elapsed';
+            TitleStr = 'Fixed Speed - 1 min elapsed';
         elseif ElapsedTime >= 120 && ElapsedTime < 180
-            TitleStr = 'Fp Targeting - 2 min elapsed';
+            TitleStr = 'Fixed Speed - 2 min elapsed';
         elseif ElapsedTime >= 180 && ElapsedTime < 240
-            TitleStr = 'Fp Targeting - 3 min elapsed';
+            TitleStr = 'Fixed Speed - 3 min elapsed';
         elseif ElapsedTime >= 240
-            TitleStr = 'Fp Targeting - 4 min elapsed';
+            TitleStr = 'Fixed Speed - 4 min elapsed';
         end
         title(TitleStr);
         
