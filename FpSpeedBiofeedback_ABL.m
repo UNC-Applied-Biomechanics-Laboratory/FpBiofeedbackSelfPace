@@ -115,8 +115,8 @@ BottomLine = ones(1,length(x)) .* (MidTM - Window);
 plot(x, MidLine, 'k'); 
 plot(x, TopLine, 'k'); 
 plot(x, BottomLine, 'k'); 
-ylabel('Treadmill Length'); 
-xlabel('Time');
+ylabel('Treadmill Length (m) and Walking Speed (m/s)'); 
+xlabel('Frame');
 title('Self Pace CoP and Speed'); 
 legend({'right CoP','left CoP','avg CoP','speed', 'Center & Dead Zone'}); 
 
