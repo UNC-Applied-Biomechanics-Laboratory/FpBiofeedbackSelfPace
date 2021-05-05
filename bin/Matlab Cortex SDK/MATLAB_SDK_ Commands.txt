@@ -1,0 +1,12 @@
+There are 4 files for the beta SDK:
+
+ 1. mCortexInitialize: To use this pass in a structure with all the relevant IP addresses. I have attached an m-file (CreateInitStruct). Use this to create the default and change as required. The format is then returnVal = mCortexInitialize(initializeStruct);
+If it does not return a 0, there is an error.
+
+ 2. mGetCurrentFrame: Can only be used AFTER initializing. If you do not initialize correctly it may result in crashes. You only need to initialize once. Do not initialize repeatedly. Format is frameOfData = mGetCurrentFrame(); It does not take any input arguments. It returns a complex structure containing all the fields in a frame. The names of the structure should be self explanatory for the content in the structure. 
+
+2. mGetBodyDefs: Can only be used AFTER initializing. If you do not initialize correctly it may result in crashes. You only need to initialize once. Do not initialize repeatedly. Format is value = mGetBodyDefs(); It does not take any input arguments. It returns a complex structure containing all the fields in a frame. The names of the structure should be self explanatory for the content in the structure. 
+
+
+4. mCortexExit: You MUST run this when finished to exit. You can get as many frames as required before exiting. Format is returnValue = mCortexExit(); If returnValue is not 0, there is an error. I can provide the error codes but they are the same as the C++ dll. 
+ This will only work on a 64bt machine.
